@@ -79,6 +79,7 @@ class cronning:
 class commands:
     def __init__(self, config: parsing):
         self.__config = config.GetReadFile()
+        self.__dir = False
     
     def __get_date(self) -> datetime:
         return datetime.datetime.now()
@@ -103,7 +104,8 @@ class commands:
             case "tar":
                 return "tar -cf /tmp/{DATE}.{SAVE_AS} {FROM}"
             case "dir":
-                return "tar -cf /tmp/{DATE}.{SAVE_AS} {FROM}"
+                self.__dir = True
+                return "cp -r {FROM} /tmp/{DATE}.{SAVE_AS}"
             case "file":
                 return "cp {FROM} /tmp/{DATE}.{SAVE_AS}"
     
@@ -112,9 +114,13 @@ class commands:
         vm_cmd = self.__commands_for_vm(backup)
         save_as = self.__pulling_filename_from_location(backup)
         subprocess.run(["ssh", "{USER}@{HOST}".format(USER = backup[2], HOST= backup[1]), "{VMCMD}".format(VMCMD=vm_cmd.format(FROM=backup[3], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")))])
-        subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = backup[2], HOST= backup[1], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")), "{TO}.{DATE}".format(TO=backup[4], DATE=date.strftime("%d%m%Y"))])
-        subprocess.run(["ssh", "{USER}@{HOST}".format(USER = backup[2], HOST= backup[1]), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d%m%Y"))])
-        cleaning(backup[4], backup[6])
+        if not self.__dir:
+            subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = backup[2], HOST= backup[1], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")), "{TO}.{DATE}".format(TO=backup[4], DATE=date.strftime("%d%m%Y"))])
+            subprocess.run(["ssh", "{USER}@{HOST}".format(USER = backup[2], HOST= backup[1]), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d%m%Y"))])
+            cleaning(backup[4], backup[6])
+        else:
+            subprocess.run(["scp", "-r", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = backup[2], HOST= backup[1], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")), "{TO}.{DATE}/".format(TO=backup[4], DATE=date.strftime("%d%m%Y"))])            
+            subprocess.run(["ssh", "{USER}@{HOST}".format(USER = backup[2], HOST= backup[1]), "rm", "-r", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d%m%Y"))])
         
 
 class command_functions:
