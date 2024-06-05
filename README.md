@@ -21,4 +21,5 @@ git clone https://github.com/NCAS-CMS/backup-utils.git && cd backup-utils
 python3 backup_manager.py crontab
 # This will update your crontab with all the backups specified in the config file
 ```
-* Done!
+* Here is a use-case diagram explaining how a sysadmin would set this up:
+![use-case-diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/NCAS-CMS/backup-utils/dev/use-case-diagram.iuml)

@@ -1,0 +1,33 @@
+@startuml use-case-diagram
+usecase crontab
+usecase execute
+actor sysadmin as sys
+package Config.yml {
+    usecase h as "..HOST..
+    Specifies the host 
+    machines ssh id"
+    usecase u as "..USER..
+    The user you will login
+    to the host as"
+    usecase v as "..HOST-LOCATION..
+    The location of the directory/file
+    that you want to backup on the
+    host machine"
+    usecase l as "..LOCAL-LOCATION..
+    The location that you would like
+    the backups to be stored locally"
+    usecase f as "..FREQUENCY..
+    How often the backup will
+    be performed (in steps)"
+    usecase i as "..ITERATIONS..
+    How many versions of the backup
+    you would like to keep"
+}
+
+sys --> Config.yml
+sys --> crontab
+sys --> execute
+crontab --> execute
+crontab --> Config.yml
+execute --> Config.yml
+@enduml
