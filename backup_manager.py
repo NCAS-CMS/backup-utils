@@ -5,6 +5,7 @@ import argparse
 import datetime
 from crontab import CronTab
 
+# Reads the configuration file and produces a dictionary that the rest of the program can use
 class parsing:
     def __init__(self, config_location: str):
         self.__config_location = config_location
@@ -20,6 +21,7 @@ class parsing:
     def GetReadFile(self) -> dict:
         return self.__config
 
+# Removes old iterations of backups according to a number specified in the config
 class cleaning:
     def __init__(self, file:str, how_many: int):
         files = self.__finding_backup_locations(file)
@@ -34,6 +36,7 @@ class cleaning:
         files = os.listdir(self.__backup_location)
         return files
         
+    # Splits the directory into the files
     def __sorting_into_types(self, files: list, file: str):
         self.__collection: dict[str, list] = {}
         for i in files:
@@ -49,6 +52,7 @@ class cleaning:
         for file in self.__collection:
             self.__collection[file].sort(reverse=True)
     
+    # With the sorted list of dates we just remove all that fall outside of the frequency asked for
     def __deleting_older_than_freq(self, file: str, how_many: int, files: list):
         deleted = self.__collection.get(file.split("/")[len(file.split("/"))-1].replace(".",""))[how_many:]
         for i in deleted:
@@ -57,26 +61,30 @@ class cleaning:
                 if j == str(file.split("/")[len(file.split("/"))-1]+"."+date):
                     os.remove(self.__backup_location+"/"+j)
 
-
+#  Manages the crontab
 class cronning:
     def __init__(self, config: parsing):
         self.__config = config.GetReadFile()
         self.__cron = CronTab(user=True)
 
+    # Removes all the cronjobs that the program has added to the crontab
+    # It does this by the use of a comment, Added by backup_manager!, so it doesn't remove cronjobs it hasn't added
     def clear_crontab(self):
         for job in self.__cron.find_comment("Added by backup_manager!"):
             self.__cron.remove(job)
 
+    # Writes to the crontab
     def write_to_crontab(self):
         for section in self.__config:
             for backup_i in range(0, len(self.__config.get(section))):
                 job = self.__cron.new(command="/bin/python3 {THIS_FILE} execute {ARG1} {ARG2}".format(THIS_FILE=os.path.abspath(__file__), ARG1 = section, ARG2 = backup_i), comment="Added by backup_manager!")
                 if "MONTH" in self.__config.get(section)[backup_i][5]:
-                    job.setall("0 0 1 */{MONTH} *".format(MONTH=self.__config.get(section)[backup_i][5][0]))
+                    job.setall("0 0 1 */{MONTH} *".format(MONTH=self.__config.get(section)[backup_i][5][0])) # Month steps - 1'st of every month
                 else:
-                    job.setall("0 0 */{DAY} * *".format(DAY=self.__config.get(section)[backup_i][5]))
+                    job.setall("0 0 */{DAY} * *".format(DAY=self.__config.get(section)[backup_i][5])) # Day steps - Midnight at the start of the day
         self.__cron.write_to_user()
 
+# The commands/processes that actually get run
 class commands:
     def __init__(self, config: parsing):
         self.__config = config.GetReadFile()
@@ -84,10 +92,12 @@ class commands:
     def __get_date(self) -> datetime:
         return datetime.datetime.now()
 
+    # Starts the execution progress
     def execute(self, section: str, backup_id: int):
         backup = self.__find_backup_info(section, backup_id)
         self.__commands_for_local(backup)
 
+    # Finds the specific backup being referred to in the arguments
     def __find_backup_info(self, section: str, backup_id: int) -> list:
         section = self.__config.get(section)
         return section[backup_id]
@@ -97,6 +107,7 @@ class commands:
         split_path: list[str] = location.split("/")
         return split_path[len(split_path)-1]
     
+    # Specifies which commands can be run, also where new commands can be added to incoorporate different backups
     def __commands_for_vm(self, backup: list) -> str:
         match backup[0]:
             case "db":
@@ -108,6 +119,7 @@ class commands:
             case "file":
                 return "cp {FROM} /tmp/{DATE}.{SAVE_AS}"
     
+    # Executes the commands
     def __commands_for_local(self, backup: list) -> str:
         date = self.__get_date()
         vm_cmd = self.__commands_for_vm(backup)
@@ -115,9 +127,9 @@ class commands:
         subprocess.run(["ssh", "{USER}@{HOST}".format(USER = backup[2], HOST= backup[1]), "{VMCMD}".format(VMCMD=vm_cmd.format(FROM=backup[3], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")))])
         subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = backup[2], HOST= backup[1], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")), "{TO}.{DATE}".format(TO=backup[4], DATE=date.strftime("%d%m%Y"))])
         subprocess.run(["ssh", "{USER}@{HOST}".format(USER = backup[2], HOST= backup[1]), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d%m%Y"))])
-        cleaning(backup[4], backup[6])
+        cleaning(backup[4], backup[6]) # Cleaning files that are old now that the new backups are there
         
-
+# Deals with the arguments and different functions that need to be called 
 class command_functions:
     def crontab_func(args):
         parsed = parsing("./config.yml")
@@ -131,16 +143,21 @@ class command_functions:
         command = commands(parsed)
         command.execute(args.section, int(args.id))
 
-global_parser = argparse.ArgumentParser(prog="backup-util")
-subparsers = global_parser.add_subparsers(required=True)
+# Sets up the argument parsing and prints out explanations if there are wrong arguments
+def main():
+    global_parser = argparse.ArgumentParser(prog="backup-util")
+    subparsers = global_parser.add_subparsers(required=True)
 
-crontab = subparsers.add_parser("crontab", help="Update the crontab")
-crontab.set_defaults(func=command_functions.crontab_func)
+    crontab = subparsers.add_parser("crontab", help="Update the crontab")
+    crontab.set_defaults(func=command_functions.crontab_func)
 
-execute = subparsers.add_parser("execute", help="Execute a backup defined in the config.yml")
-execute.add_argument("section")
-execute.add_argument("id")
-execute.set_defaults(func=command_functions.execute_func)
+    execute = subparsers.add_parser("execute", help="Execute a backup defined in the config.yml")
+    execute.add_argument("section")
+    execute.add_argument("id")
+    execute.set_defaults(func=command_functions.execute_func)
 
-args = global_parser.parse_args()
-args.func(args)
+    args = global_parser.parse_args()
+    args.func(args)
+
+if __name__ == "__main__":
+    main()
