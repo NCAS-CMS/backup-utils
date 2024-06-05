@@ -64,12 +64,13 @@ class cronning:
         self.__cron = CronTab(user=True)
 
     def clear_crontab(self):
-        self.__cron.remove_all()
+        for job in self.__cron.find_comment("Added by backup_manager!"):
+            self.__cron.remove(job)
 
     def write_to_crontab(self):
         for section in self.__config:
             for backup_i in range(0, len(self.__config.get(section))):
-                job = self.__cron.new(command="/bin/python3 {THIS_FILE} execute {ARG1} {ARG2}".format(THIS_FILE=os.path.abspath(__file__), ARG1 = section, ARG2 = backup_i))
+                job = self.__cron.new(command="/bin/python3 {THIS_FILE} execute {ARG1} {ARG2}".format(THIS_FILE=os.path.abspath(__file__), ARG1 = section, ARG2 = backup_i), comment="Added by backup_manager!")
                 if "MONTH" in self.__config.get(section)[backup_i][5]:
                     job.setall("0 0 1 */{MONTH} *".format(MONTH=self.__config.get(section)[backup_i][5][0]))
                 else:
