@@ -1,0 +1,35 @@
+@startuml sequence diagram
+file config as "config" {
+    card h as "HOST"
+    card "USER"
+    card "HOST-LOCATION"
+    card "LOCAL-LOCATION"
+    card "FREQUENCY"
+    card "ITERATIONS"
+}
+actor sysadmin
+file crontab 
+agent crontab_func
+agent execute_func
+component parsing
+component cleaning
+component cronning
+component commands
+cloud "HOST"
+
+sysadmin --> config : "Edits"
+sysadmin --> crontab_func : "Calls"
+crontab_func --> parsing : "Calls"
+parsing --> config : "Reads from and parses"
+parsing --> crontab_func : "Returns the parsed config"
+crontab_func --> cronning : "Passes the parsed config"
+cronning --> crontab : "Replaces the old \n- if any - config \nwith the new one"
+crontab --> execute_func : "At defined steps with \n the commands from the config"
+sysadmin --> execute_func : "Calls \n in exceptional circumstances \n the sysadmin can start a backup"
+execute_func --> parsing : "Calls"
+parsing --> execute_func : "Returns the parsed config"
+parsing --> commands : "Passes the parsed config"
+commands --> HOST : "Sends commands to prepare the data \n and requests it"
+HOST --> commands : "Sends back the data \n deletes the data it has prepared"
+commands --> cleaning : "Requests the oldest be cleaned"
+@enduml
