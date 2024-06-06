@@ -40,9 +40,9 @@ python3 backup_manager.py crontab
     * dir - puts a directory into a tar file but doesn't compress it, e.g. for large files
     * file - only backs up a single file
   * The second section shows where the file/dir is on the foreign machine
-    * Note a full path is recommended (starting with `/home/` usually)
+    * Note a full path is required (starting with `/home/` usually)
   * The third section shows where the file/dir will be stored locally
-    * A full path is also recommended here
+    * A full path is also required here
     * Make sure the file name is included, e.g. ending with `/backup.tar`, or the programme may misbehave
   * The fourth section displays the frequency of the backup
     * This is so the crontab can be configured correctly

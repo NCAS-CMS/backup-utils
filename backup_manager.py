@@ -3,6 +3,7 @@ import subprocess
 import yaml
 import argparse
 import datetime
+import re
 from crontab import CronTab
 
 # Reads the configuration file and produces a dictionary that the rest of the program can use
@@ -15,10 +16,44 @@ class parsing:
         with open(self.__config_location, 'r') as file:
             self.__config = yaml.safe_load(file)
     
-    def __syntax_check(self):
-        pass # TODO
+    # Checks section in user@host
+    def __section_format_check(self):
+        for section in self.__config:
+            valid = re.findall(r"^\w+@\w+$", section)
+            if not valid:
+                raise ValueError("Section titles need to be of form user@host, yours is {SECTION}".format(SECTION=section))
     
+    def __backup_format_check(self):
+        for section in self.__config:
+            for backup in self.__config.get(section):
+                # Length check
+                if len(backup) != 5:
+                    raise ValueError("Backups need to have 5 variables, yours is {BACKUP}".format(BACKUP=backup))
+                # Backup type check
+                if backup[0] not in ["tar", "db", "dir", "file"]:
+                    raise ValueError("The first backup section can only be tar,db,dir or file, yours is {BACKUP_SECTION}".format(BACKUP_SECTION=backup[0]))
+                # File paths valid check
+                valid = re.findall(r"^\/", backup[1])
+                if not valid:
+                    raise ValueError("The path on the foreign machine must be absolute, e.g starting with /, yours is {BACKUP_SECTION}".format(BACKUP_SECTION=backup[1]))
+                valid = re.findall(r"^\/", backup[2])
+                if not valid:
+                    raise ValueError("The path on the local machine must be absolute, e.g starting with /, yours is {BACKUP_SECTION}".format(BACKUP_SECTION=backup[2]))
+                # Frequency check
+                valid = re.findall(r"^(\d+)(MONTH)?$", backup[3])
+                if not valid:
+                    raise ValueError("The frequency defined must have a be of the form int or intMONTH, yours is {BACKUP_SECTION}.".format(BACKUP_SECTION=backup[3]))
+                # Iterations check
+                valid = re.findall(r"^\d+$", backup[4])
+                if not valid:
+                    raise ValueError("The number of iterations must be a positive integer, yours is {BACKUP_SECTION}".format(BACKUP_SECTION=backup[4]))
+    
+    def __syntax_check(self):
+        self.__section_format_check()
+        self.__backup_format_check()
+
     def GetReadFile(self) -> dict:
+        self.__syntax_check()
         return self.__config
 
 # Removes old iterations of backups according to a number specified in the config
@@ -139,9 +174,10 @@ class commands:
 class command_functions:
     def crontab_func(args):
         parsed = parsing("./config.yml")
-        cron = cronning(parsed)
-        cron.clear_crontab()
-        cron.write_to_crontab()
+        parsed.GetReadFile()
+        #cron = cronning(parsed)
+        #cron.clear_crontab()
+        #cron.write_to_crontab()
 
     def execute_func(args):
         # This is a command operation
