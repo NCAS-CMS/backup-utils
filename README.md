@@ -9,8 +9,8 @@ Backup manager is a simplistic backup solution that reads a configuration file (
 ![use-case-diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/NCAS-CMS/backup-utils/dev/diagrams/sequence-diagram.iuml)
 
 ## Running it 🏃
-* Get the `backup_manager.py` script and the `config.yml` files in the same directory on your local machine
-  * They should preferably not be moved around much as the crontab needs to be regenerated each time they change location
+* Get the `backup_manager.py` script and the `config.yml` files
+  * They should preferably not be moved around much as the crontab needs to be regenerated `backup_manager.py` changes location
   * One way to do this is through a quick git clone command:
 ```bash
 git clone https://github.com/NCAS-CMS/backup-utils.git && cd backup-utils
@@ -18,6 +18,8 @@ git clone https://github.com/NCAS-CMS/backup-utils.git && cd backup-utils
 * Edit the config.yml file to your liking
   * Note that the section groups specify the host and the username used
   * Also note that every time the config is updated, the crontab needs to be regenerated
+* Fill in the constant at the start of the program `CONFIG_LOCATION` with the location of the config
+  * This is relative to the location of `backup_manager.py` however it is always safest to use an absolute path
 * Run the program in crontab mode:
 ```bash
 python3 backup_manager.py crontab
@@ -25,8 +27,6 @@ python3 backup_manager.py crontab
 ```
 * Here is a use-case diagram explaining how a sysadmin would set this up:
 ![use-case-diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/NCAS-CMS/backup-utils/dev/diagrams/use-case-diagram.iuml)
-
-<!-- Note the UML diagrams have to have their tokens updated due to this being a private git repository as of now - it should not be an issue if we go public -->
 
 ## The config ⚙️
 * Ah yes the bane of every program - it's config, hopefully this section can help explain it!

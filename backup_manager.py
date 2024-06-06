@@ -6,6 +6,8 @@ import datetime
 import re
 from crontab import CronTab
 
+CONFIG_LOCATION = "" # PLEASE SET THIS! (The program will error out if you don't ;))
+
 # Reads the configuration file and produces a dictionary that the rest of the program can use
 class parsing:
     def __init__(self, config_location: str):
@@ -173,20 +175,22 @@ class commands:
 # Deals with the arguments and different functions that need to be called 
 class command_functions:
     def crontab_func(args):
-        parsed = parsing("./config.yml")
+        parsed = parsing(CONFIG_LOCATION)
         parsed.GetReadFile()
-        #cron = cronning(parsed)
-        #cron.clear_crontab()
-        #cron.write_to_crontab()
+        cron = cronning(parsed)
+        cron.clear_crontab()
+        cron.write_to_crontab()
 
     def execute_func(args):
         # This is a command operation
-        parsed = parsing("./config.yml")
+        parsed = parsing(CONFIG_LOCATION)
         command = commands(parsed)
         command.execute(args.section, int(args.id))
 
 # Sets up the argument parsing and prints out explanations if there are wrong arguments
 def main():
+    if CONFIG_LOCATION == "": # The default value
+        raise ValueError("Please provide the location of your config.yml file")
     global_parser = argparse.ArgumentParser(prog="backup-util")
     subparsers = global_parser.add_subparsers(required=True)
 
