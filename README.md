@@ -5,6 +5,7 @@ Backup manager is a simplistic backup solution that reads a configuration file (
 * Put simply, there are two modes, crontab mode and execute mode
   * crontab modes updates the crontab with references to the indexes in the config.yml
   * execute mode performs the operations specified in the config.yml (the crontab calls execute mode!)
+   * The log stores all the failed commands  
 * Here is a sequence diagram explaining how the functions/classes interract:
 ![use-case-diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/NCAS-CMS/backup-utils/dev/diagrams/sequence-diagram.iuml)
 
@@ -20,6 +21,8 @@ git clone https://github.com/NCAS-CMS/backup-utils.git && cd backup-utils
   * Also note that every time the config is updated, the crontab needs to be regenerated
 * Fill in the constant at the start of the program `CONFIG_LOCATION` with the location of the config
   * This is relative to the location of `backup_manager.py` however it is always safest to use an absolute path
+* Fill in the other constant at the start of the program `LOG_LOCATION` with the location that you want the logs to be stored
+  * This is again relative to the location of `backup_manager.py` however again safety dictates you should use an absolute path
 * Run the program in crontab mode:
 ```bash
 python3 backup_manager.py crontab
