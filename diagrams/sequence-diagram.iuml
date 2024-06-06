@@ -9,9 +9,11 @@ file config as "config" {
 }
 actor sysadmin
 file crontab 
+file log
 agent crontab_func
 agent execute_func
 component parsing
+component log_manager
 component cleaning
 component cronning
 component commands
@@ -19,6 +21,7 @@ cloud "HOST"
 
 sysadmin --> config : "Edits"
 sysadmin --> crontab_func : "Calls"
+sysadmin --> log : "Reads"
 crontab_func --> parsing : "Calls"
 parsing --> config : "Reads from and parses"
 parsing --> crontab_func : "Returns the parsed config"
@@ -31,5 +34,7 @@ parsing --> execute_func : "Returns the parsed config"
 parsing --> commands : "Passes the parsed config"
 commands --> HOST : "Sends commands to prepare the data \n and requests it"
 HOST --> commands : "Sends back the data \n deletes the data it has prepared"
+commands --> log_manager : "Logs failed commands"
+log_manager --> log : "Writes logs to"
 commands --> cleaning : "Requests the oldest be cleaned"
 @enduml
