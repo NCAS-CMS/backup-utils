@@ -78,10 +78,10 @@ class cronning:
         for section in self.__config:
             for backup_i in range(0, len(self.__config.get(section))):
                 job = self.__cron.new(command="/bin/python3 {THIS_FILE} execute {ARG1} {ARG2}".format(THIS_FILE=os.path.abspath(__file__), ARG1 = section, ARG2 = backup_i), comment="Added by backup_manager!")
-                if "MONTH" in self.__config.get(section)[backup_i][5]:
-                    job.setall("0 0 1 */{MONTH} *".format(MONTH=self.__config.get(section)[backup_i][5][0])) # Month steps - 1'st of every month
+                if "MONTH" in self.__config.get(section)[backup_i][3]:
+                    job.setall("0 0 1 */{MONTH} *".format(MONTH=self.__config.get(section)[backup_i][3][0])) # Month steps - 1'st of every month
                 else:
-                    job.setall("0 0 */{DAY} * *".format(DAY=self.__config.get(section)[backup_i][5])) # Day steps - Midnight at the start of the day
+                    job.setall("0 0 */{DAY} * *".format(DAY=self.__config.get(section)[backup_i][3])) # Day steps - Midnight at the start of the day
         self.__cron.write_to_user()
 
 # The commands/processes that actually get run
@@ -95,7 +95,13 @@ class commands:
     # Starts the execution progress
     def execute(self, section: str, backup_id: int):
         backup = self.__find_backup_info(section, backup_id)
-        self.__commands_for_local(backup)
+        host, user = self.__pulling_host_and_user(section)
+        self.__commands_for_local(backup, host, user)
+    
+    def __pulling_host_and_user(self, section: str) -> tuple[str, str]:
+        host = section.split("@")[1]
+        user = section.split("@")[0]
+        return (host, user)
 
     # Finds the specific backup being referred to in the arguments
     def __find_backup_info(self, section: str, backup_id: int) -> list:
@@ -103,7 +109,7 @@ class commands:
         return section[backup_id]
     
     def __pulling_filename_from_location(self, backup: list) -> str:
-        location: str = backup[4]
+        location: str = backup[2]
         split_path: list[str] = location.split("/")
         return split_path[len(split_path)-1]
     
@@ -113,21 +119,21 @@ class commands:
             case "db":
                 return "sqlite3 {FROM} \".backup /tmp/{DATE}.{SAVE_AS}\""
             case "tar":
-                return "tar -cf /tmp/{DATE}.{SAVE_AS} {FROM}"
+                return "tar -czf /tmp/{DATE}.{SAVE_AS} {FROM}"
             case "dir":
                 return "tar -cf /tmp/{DATE}.{SAVE_AS} {FROM}"
             case "file":
                 return "cp {FROM} /tmp/{DATE}.{SAVE_AS}"
     
     # Executes the commands
-    def __commands_for_local(self, backup: list) -> str:
+    def __commands_for_local(self, backup: list, host: str, user: str) -> str:
         date = self.__get_date()
         vm_cmd = self.__commands_for_vm(backup)
         save_as = self.__pulling_filename_from_location(backup)
-        subprocess.run(["ssh", "{USER}@{HOST}".format(USER = backup[2], HOST= backup[1]), "{VMCMD}".format(VMCMD=vm_cmd.format(FROM=backup[3], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")))])
-        subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = backup[2], HOST= backup[1], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")), "{TO}.{DATE}".format(TO=backup[4], DATE=date.strftime("%d%m%Y"))])
-        subprocess.run(["ssh", "{USER}@{HOST}".format(USER = backup[2], HOST= backup[1]), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d%m%Y"))])
-        cleaning(backup[4], backup[6]) # Cleaning files that are old now that the new backups are there
+        subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "{VMCMD}".format(VMCMD=vm_cmd.format(FROM=backup[1], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")))])
+        subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = user, HOST = host, SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")), "{TO}.{DATE}".format(TO=backup[2], DATE=date.strftime("%d%m%Y"))])
+        subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d%m%Y"))])
+        cleaning(backup[2], backup[4]) # Cleaning files that are old now that the new backups are there
         
 # Deals with the arguments and different functions that need to be called 
 class command_functions:

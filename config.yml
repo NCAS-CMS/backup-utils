@@ -1,8 +1,7 @@
 ---
-# Categorised under:
-#   - [backup type, host, user to ssh as, location of file/dir on vm, location to store locally, frequency (how often) in days/months, how many versions to keep]
-Main:
-  - [ "db", "***HOST***", "***USER***", "/home/***HOST***/dir/db.sqlite3", "/home/***USER***/backups/database.sql", "15", 3] # Every 15 days, keep the 3 most recents
-  - [ "tar", "***HOST***", "***USER***", "/home/***HOST***/", "/home/***USER***/backups/full.tar", "10", 3] # Every 10 days, keep the 3 most recents
-  - [ "dir", "***HOST***", "***USER***", "/home/***HOST***/static/", "/home/***USER***/backup-new-dir/static.tar", "1MONTH", 1] # The first of every month, keep the most recent only
-  - [ "file", "***HOST***", "***USER***", "/home/***HOST***/backup.sh", "/home/***USER***/backups/backup.sh", "2MONTH", 1] # The first of every two months, keep the most recent only
+# Check the README for a more specific explanation
+user@host:
+  - [ "db", "location on vm", "location on local", "15", 3] # Every 15 days, keep the 3 most recents
+  - [ "tar", "location on vm", "location on local", "10", 3] # Every 10 days, keep the 3 most recents
+  - [ "dir", "location on vm", "location on local", "1MONTH", 1] # The first of every month, keep the most recent only
+  - [ "file", "location on vm", "location on local", "2MONTH", 1] # The first of every two months, keep the most recent only

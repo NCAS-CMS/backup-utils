@@ -16,7 +16,7 @@ Backup manager is a simplistic backup solution that reads a configuration file (
 git clone https://github.com/NCAS-CMS/backup-utils.git && cd backup-utils
 ```
 * Edit the config.yml file to your liking
-  * Note that the section groups are only for easy categorisation for the user and have no impact on how the program runs
+  * Note that the section groups specify the host and the username used
   * Also note that every time the config is updated, the crontab needs to be regenerated
 * Run the program in crontab mode:
 ```bash
@@ -27,3 +27,27 @@ python3 backup_manager.py crontab
 ![use-case-diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/NCAS-CMS/backup-utils/dev/diagrams/use-case-diagram.iuml?token=GHSAT0AAAAAACTFT7AQXQDCKW76757FRGMGZTAMNVA)
 
 <!-- Note the UML diagrams have to have their tokens updated due to this being a private git repository as of now - it should not be an issue if we go public -->
+
+## The config ⚙️
+* Ah yes the bane of every program - it's config, hopefully this section can help explain it!
+* The start of every section - in the provided config as `user@host` - is where you put the ssh address and user you will ssh in as
+  * This will be used for every backup in the section - so if you need to use different users, make a new section!
+  * Currently only backups that require ssh'ing into a different machine are supported but we aim to add local backups in the future as well
+*  Now onto the backups:
+  * The first section is used to show which backup option you are using:
+    * db - uses sqlite3's backup command to backup a database
+    * tar - compresses a directory into a tar file (using gzip)
+    * dir - puts a directory into a tar file but doesn't compress it, e.g. for large files
+    * file - only backs up a single file
+  * The second section shows where the file/dir is on the foreign machine
+    * Note a full path is recommended (starting with `/home/` usually)
+  * The third section shows where the file/dir will be stored locally
+    * A full path is also recommended here
+    * Make sure the file name is included, e.g. ending with `/backup.tar`, or the programme may misbehave
+  * The fourth section displays the frequency of the backup
+    * This is so the crontab can be configured correctly
+    * Note the syntax used in the example for specifying months
+    * This is in leaps, e.g. `"1"` means every day
+  * The fifth and final section shows how many iterations you would like to keep
+    * For example you may want to take a full backup every month only keeping the most recent version
+      * Hence you would use `1` in this section and `1MONTH` in the fourth section
