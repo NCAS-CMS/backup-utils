@@ -4,9 +4,10 @@ import yaml
 import argparse
 import datetime
 import re
+import logging
 from crontab import CronTab
-
 CONFIG_LOCATION = "" # PLEASE SET THIS! (The program will error out if you don't ;))
+LOG_LOCATION = "" # PLEASE ALSO SET THIS! (The program will also error out here if not set)
 
 # Reads the configuration file and produces a dictionary that the rest of the program can use
 class parsing:
@@ -42,7 +43,7 @@ class parsing:
                 if not valid:
                     raise ValueError("The path on the local machine must be absolute, e.g starting with /, yours is {BACKUP_SECTION}".format(BACKUP_SECTION=backup[2]))
                 # Frequency check
-                valid = re.findall(r"^(cron:\s) | ((\d+)(MONTH)?)$", str(backup[3]))
+                valid = re.findall(r"^((cron: )|((\d+)(MONTH)?$))", str(backup[3]))
                 if not valid:
                     raise ValueError("The frequency defined must have a be of the form int or intMONTH, yours is {BACKUP_SECTION}.".format(BACKUP_SECTION=backup[3]))
                 # Iterations check
@@ -77,9 +78,9 @@ class cleaning:
     def __sorting_into_types(self, files: list, file: str):
         self.__collection: dict[str, list] = {}
         for i in files:
-            date = i.split(".")[len(i.split("."))-1]
-            date_in_format = datetime.datetime.strptime(date, "%d%m%Y")
             if i.split(".")[0]+"."+i.split(".")[1] == file.split("/")[len(file.split("/"))-1]:
+                date = i.split(".")[len(i.split("."))-1]
+                date_in_format = datetime.datetime.strptime(date, "%d-%m-%Y")
                 if (i.split(".")[0]+i.split(".")[1]) in self.__collection:
                     self.__collection[(i.split(".")[0]+i.split(".")[1])].append(date_in_format)
                 else:
@@ -93,7 +94,7 @@ class cleaning:
     def __deleting_older_than_freq(self, file: str, how_many: int, files: list):
         deleted = self.__collection.get(file.split("/")[len(file.split("/"))-1].replace(".",""))[how_many:]
         for i in deleted:
-            date = i.strftime("%d%m%Y")
+            date = i.strftime("%d-%m-%Y")
             for j in files:
                 if j == str(file.split("/")[len(file.split("/"))-1]+"."+date):
                     os.remove(self.__backup_location+"/"+j)
@@ -125,6 +126,15 @@ class cronning:
                         job.setall("0 0 */{DAY} * *".format(DAY=self.__config.get(section)[backup_i][3])) # Day steps - Midnight at the start of the day
         self.__cron.write_to_user()
 
+class log_manager:
+    def __init__(self):
+        logging.basicConfig(filename=LOG_LOCATION, format="%(asctime)s:%(funcName)s - %(levelname)s - %(message)s")
+    
+    def handling_subprocess_results(self, result):
+        if result.returncode != 0:
+            logging.exception("\n command: {COMMAND} \n output (may be None): {OUT} \n error (may be None): {ERROR} \n".format(COMMAND=" ".join(result.args), OUT=result.stdout, ERROR=result.stderr))
+            raise Exception("Check log for detailed error info.")
+    
 # The commands/processes that actually get run
 class commands:
     def __init__(self, config: parsing):
@@ -168,14 +178,16 @@ class commands:
     
     # Executes the commands
     def __commands_for_local(self, backup: list, host: str, user: str) -> str:
+        logger = log_manager()
         date = self.__get_date()
         vm_cmd = self.__commands_for_vm(backup)
         save_as = self.__pulling_filename_from_location(backup)
-        subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "{VMCMD}".format(VMCMD=vm_cmd.format(FROM=backup[1], SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")))])
-        subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = user, HOST = host, SAVE_AS=save_as, DATE=date.strftime("%d%m%Y")), "{TO}.{DATE}".format(TO=backup[2], DATE=date.strftime("%d%m%Y"))])
-        subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d%m%Y"))])
+        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "test -e {FROM}".format(FROM=backup[1])]))
+        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "{VMCMD}".format(VMCMD=vm_cmd.format(FROM=backup[1], SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y")))]))
+        logger.handling_subprocess_results(subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = user, HOST = host, SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y")), "{TO}.{DATE}".format(TO=backup[2], DATE=date.strftime("%d-%m-%Y"))]))
+        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y"))]))
         cleaning(backup[2], backup[4]) # Cleaning files that are old now that the new backups are there
-        
+       
 # Deals with the arguments and different functions that need to be called 
 class command_functions:
     def crontab_func(args):
@@ -195,6 +207,9 @@ class command_functions:
 def main():
     if CONFIG_LOCATION == "": # The default value
         raise ValueError("Please provide the location of your config.yml file")
+    if LOG_LOCATION == "":
+        raise ValueError("Please specify the location of the log file")
+    
     global_parser = argparse.ArgumentParser(prog="backup-util")
     subparsers = global_parser.add_subparsers(required=True)
 
