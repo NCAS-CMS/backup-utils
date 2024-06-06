@@ -24,7 +24,7 @@ python3 backup_manager.py crontab
 # This will update your crontab with all the backups specified in the config file
 ```
 * Here is a use-case diagram explaining how a sysadmin would set this up:
-![use-case-diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/NCAS-CMS/backup-utils/dev/diagrams/use-case-diagram.iuml?token=GHSAT0AAAAAACTFT7ARFS25CGMA2DJGYUGIZTBPBYQ)
+![use-case-diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/NCAS-CMS/backup-utils/dev/diagrams/use-case-diagram.iuml?token=GHSAT0AAAAAACTFT7AQNM7PBRVLYRY6K7OAZTBPDMQ)
 
 <!-- Note the UML diagrams have to have their tokens updated due to this being a private git repository as of now - it should not be an issue if we go public -->
 
