@@ -42,11 +42,11 @@ class parsing:
                 if not valid:
                     raise ValueError("The path on the local machine must be absolute, e.g starting with /, yours is {BACKUP_SECTION}".format(BACKUP_SECTION=backup[2]))
                 # Frequency check
-                valid = re.findall(r"^(\d+)(MONTH)?$", backup[3])
+                valid = re.findall(r"^(cron:\s) | ((\d+)(MONTH)?)$", str(backup[3]))
                 if not valid:
                     raise ValueError("The frequency defined must have a be of the form int or intMONTH, yours is {BACKUP_SECTION}.".format(BACKUP_SECTION=backup[3]))
                 # Iterations check
-                valid = re.findall(r"^\d+$", backup[4])
+                valid = re.findall(r"^\d+$", str(backup[4]))
                 if not valid:
                     raise ValueError("The number of iterations must be a positive integer, yours is {BACKUP_SECTION}".format(BACKUP_SECTION=backup[4]))
     
@@ -115,10 +115,14 @@ class cronning:
         for section in self.__config:
             for backup_i in range(0, len(self.__config.get(section))):
                 job = self.__cron.new(command="/bin/python3 {THIS_FILE} execute {ARG1} {ARG2}".format(THIS_FILE=os.path.abspath(__file__), ARG1 = section, ARG2 = backup_i), comment="Added by backup_manager!")
-                if "MONTH" in self.__config.get(section)[backup_i][3]:
-                    job.setall("0 0 1 */{MONTH} *".format(MONTH=self.__config.get(section)[backup_i][3][0])) # Month steps - 1'st of every month
+                if "cron:" in self.__config.get(section)[backup_i][3]: # We can use this loose check due to syntax validation earlier
+                    frequency = re.sub(r"cron:\s", "", self.__config.get(section)[backup_i][3])
+                    job.setall(frequency)
                 else:
-                    job.setall("0 0 */{DAY} * *".format(DAY=self.__config.get(section)[backup_i][3])) # Day steps - Midnight at the start of the day
+                    if "MONTH" in self.__config.get(section)[backup_i][3]: # We can use this loose check due to syntax validation earlier
+                        job.setall("0 0 1 */{MONTH} *".format(MONTH=self.__config.get(section)[backup_i][3][0])) # Month steps - 1'st of every month
+                    else:
+                        job.setall("0 0 */{DAY} * *".format(DAY=self.__config.get(section)[backup_i][3])) # Day steps - Midnight at the start of the day
         self.__cron.write_to_user()
 
 # The commands/processes that actually get run

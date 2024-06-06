@@ -48,6 +48,8 @@ python3 backup_manager.py crontab
     * This is so the crontab can be configured correctly
     * Note the syntax used in the example for specifying months
     * This is in leaps, e.g. `"1"` means every day
+    * To just provide your own cron time scheme simple prefix it with cron:
+      * e.g. `"cron: * * * * *` 
   * The fifth and final section shows how many iterations you would like to keep
     * For example you may want to take a full backup every month only keeping the most recent version
       * Hence you would use `1` in this section and `1MONTH` in the fourth section
