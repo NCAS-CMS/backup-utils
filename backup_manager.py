@@ -5,7 +5,10 @@ import argparse
 import datetime
 import re
 import logging
+
 from crontab import CronTab
+
+# CONSTANTS
 CONFIG_LOCATION = "" # PLEASE SET THIS! (The program will error out if you don't ;))
 LOG_LOCATION = "" # PLEASE ALSO SET THIS! (The program will also error out here if not set)
 
@@ -182,10 +185,10 @@ class commands:
         date = self.__get_date()
         vm_cmd = self.__commands_for_vm(backup)
         save_as = self.__pulling_filename_from_location(backup)
-        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "test -e {FROM}".format(FROM=backup[1])]))
-        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "{VMCMD}".format(VMCMD=vm_cmd.format(FROM=backup[1], SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y")))]))
-        logger.handling_subprocess_results(subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = user, HOST = host, SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y")), "{TO}.{DATE}".format(TO=backup[2], DATE=date.strftime("%d-%m-%Y"))]))
-        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y"))]))
+        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "test -e {FROM}".format(FROM=backup[1]), "# To check if the file exists"]))
+        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "{VMCMD}".format(VMCMD=vm_cmd.format(FROM=backup[1], SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y"))), "# To tell the machine to prepare the dir/file"]))
+        logger.handling_subprocess_results(subprocess.run(["scp", "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(USER = user, HOST = host, SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y")), "{TO}.{DATE}".format(TO=backup[2], DATE=date.strftime("%d-%m-%Y")), "# To pull the file from the machine"]))
+        logger.handling_subprocess_results(subprocess.run(["ssh", "{USER}@{HOST}".format(USER = user, HOST = host), "rm", "/tmp/{DATE}.{SAVE_AS}".format(SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y")), "# To delete the file placed in tmp from the machine"]))
         cleaning(backup[2], backup[4]) # Cleaning files that are old now that the new backups are there
        
 # Deals with the arguments and different functions that need to be called 

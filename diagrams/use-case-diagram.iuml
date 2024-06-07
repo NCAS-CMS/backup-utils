@@ -3,23 +3,23 @@ usecase crontab
 usecase execute
 actor sysadmin as sys
 package Config.yml {
-    usecase h as "..HOST..
+    usecase h as "..host..
     Specifies the host 
     machines ssh id"
-    usecase u as "..USER..
+    usecase u as "..user..
     The user you will login
     to the host as"
-    usecase v as "..HOST-LOCATION..
+    usecase v as "..location on foreign..
     The location of the directory/file
     that you want to backup on the
     host machine"
-    usecase l as "..LOCAL-LOCATION..
+    usecase l as "..location on local..
     The location that you would like
     the backups to be stored locally"
-    usecase f as "..FREQUENCY..
+    usecase f as "..frequency..
     How often the backup will
     be performed (in steps)"
-    usecase i as "..ITERATIONS..
+    usecase i as "..iterations..
     How many versions of the backup
     you would like to keep"
 }
