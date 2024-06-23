@@ -14,9 +14,19 @@ LOG_LOCATION = ""  # PLEASE ALSO SET THIS! (The program will also error out here
 
 
 # Reads the configuration file and produces a dictionary that the rest of the program can use
-class parsing:
-    def __init__(self, config_location: str):
-        self.__config_location = config_location
+class Parsing:
+    def __init__(self):
+        """Sets up the config file for reading and calls the reading function
+        
+        Args:
+            none
+        Returns:
+            none 
+        Raises:
+            none
+
+        """
+        self.__config_location = CONFIG_LOCATION
         self.__reading_file()
 
     def __reading_file(self):
@@ -28,72 +38,48 @@ class parsing:
         for section in self.__config:
             valid = re.findall(r"^\w+@\w+$", section)
             if not valid:
-                raise ValueError(
-                    "Section titles need to be of form user@host, yours is {SECTION}".format(
-                        SECTION=section
-                    )
-                )
+                raise ValueError(f"Section titles need to be of form user@host, yours is {section}")
 
     def __backup_format_check(self):
         for section in self.__config:
             for backup in self.__config.get(section):
                 # Length check
                 if len(backup) != 5:
-                    raise ValueError(
-                        "Backups need to have 5 variables, yours is {BACKUP}".format(
-                            BACKUP=backup
-                        )
-                    )
+                    raise ValueError(f"Backups need to have 5 variables, yours is {backup}")
+
                 # Backup type check
                 if backup[0] not in ["tar", "db", "dir", "file"]:
-                    raise ValueError(
-                        "The first backup section can only be tar,db,dir or file, yours is {BACKUP_SECTION}".format(
-                            BACKUP_SECTION=backup[0]
-                        )
-                    )
+                    raise ValueError(f"The first backup section can only be tar,db,dir or file, yours is {backup[0]}")
+
                 # File paths valid check
                 valid = re.findall(r"^\/", backup[1])
                 if not valid:
-                    raise ValueError(
-                        "The path on the foreign machine must be absolute, e.g starting with /, yours is {BACKUP_SECTION}".format(
-                            BACKUP_SECTION=backup[1]
-                        )
-                    )
+                    raise ValueError(f"The path on the foreign machine must be absolute, e.g starting with /, yours is {backup[1]}")
                 valid = re.findall(r"^\/", backup[2])
                 if not valid:
-                    raise ValueError(
-                        "The path on the local machine must be absolute, e.g starting with /, yours is {BACKUP_SECTION}".format(
-                            BACKUP_SECTION=backup[2]
-                        )
-                    )
+                    raise ValueError(f"The path on the local machine must be absolute, e.g starting with /, yours is {backup[2]}")
+
                 # Frequency check
                 valid = re.findall(r"^((cron: )|((\d+)(MONTH)?$))", str(backup[3]))
                 if not valid:
-                    raise ValueError(
-                        "The frequency defined must have a be of the form int or intMONTH, yours is {BACKUP_SECTION}.".format(
-                            BACKUP_SECTION=backup[3]
-                        )
-                    )
+                    raise ValueError(f"The frequency defined must have a be of the form int or intMONTH, yours is {backup[3]}.")
+
                 # Iterations check
                 valid = re.findall(r"^\d+$", str(backup[4]))
                 if not valid:
-                    raise ValueError(
-                        "The number of iterations must be a positive integer, yours is {BACKUP_SECTION}".format(
-                            BACKUP_SECTION=backup[4]
-                        )
-                    )
+                    raise ValueError(f"The number of iterations must be a positive integer, yours is {backup[4]}")
 
     def __syntax_check(self):
         self.__section_format_check()
         self.__backup_format_check()
 
-    def GetReadFile(self) -> dict:
+    def get_read_file(self) -> dict:
         self.__syntax_check()
         return self.__config
 
 
 # Removes old iterations of backups according to a number specified in the config
-class cleaning:
+class Cleaning:
     def __init__(self, file: str, how_many: int):
         files = self.__finding_backup_locations(file)
         self.__sorting_into_types(files, file)
@@ -113,18 +99,18 @@ class cleaning:
         for i in files:
             file_in_dir = i.split(".")[0] + "." + i.split(".")[1]
             file_wanted = file.split("/")[len(file.split("/")) - 1]
-            if (file_in_dir == file_wanted):
+            if file_in_dir == file_wanted:
                 file_new_format = i.split(".")[0] + i.split(".")[1]
                 date = i.split(".")[len(i.split(".")) - 1]
                 date_in_format = datetime.datetime.strptime(date, "%d-%m-%Y")
-                if (file_in_dir) in self.__collection: # Already stored
+                if file_in_dir in self.__collection: # Already stored
                     self.__collection[file_new_format].append(date_in_format)
                 else:
                     self.__collection[file_new_format] = [date_in_format]
 
     def __sorting_dates(self):
-        for file in self.__collection:
-            self.__collection[file].sort(reverse=True)
+        for file in self.__collection.items():
+            file.sort(reverse=True)
 
     # With the sorted list of dates we just remove all that fall outside of the frequency asked for
     def __deleting_older_than_freq(self, file: str, how_many: int, files: list):
@@ -137,9 +123,9 @@ class cleaning:
 
 
 #  Manages the crontab
-class cronning:
-    def __init__(self, config: parsing):
-        self.__config = config.GetReadFile()
+class Cronning:
+    def __init__(self, config: Parsing):
+        self.__config = config.get_read_file()
         self.__cron = CronTab(user=True)
 
     # Removes all the cronjobs that the program has added to the crontab
@@ -153,9 +139,7 @@ class cronning:
         for section in self.__config:
             for backup_i in range(0, len(self.__config.get(section))):
                 job = self.__cron.new(
-                    command="/bin/python3 {THIS_FILE} execute {ARG1} {ARG2}".format(
-                        THIS_FILE=os.path.abspath(__file__), ARG1=section, ARG2=backup_i
-                    ),
+                    command=f"/bin/python3 {os.path.abspath(__file__)} execute {section} {backup_i}",
                     comment="Added by backup_manager!",
                 )
                 if (
@@ -170,20 +154,16 @@ class cronning:
                         "MONTH" in self.__config.get(section)[backup_i][3]
                     ):  # We can use this loose check due to syntax validation earlier
                         job.setall(
-                            "0 0 1 */{MONTH} *".format(
-                                MONTH=self.__config.get(section)[backup_i][3][0]
-                            )
+                            f"0 0 1 */{self.__config.get(section)[backup_i][3][0]} *"
                         )  # Month steps - 1'st of every month
                     else:
                         job.setall(
-                            "0 0 */{DAY} * *".format(
-                                DAY=self.__config.get(section)[backup_i][3]
-                            )
+                            f"0 0 */{self.__config.get(section)[backup_i][3]} * *"
                         )  # Day steps - Midnight at the start of the day
         self.__cron.write_to_user()
 
 
-class log_manager:
+class Logmanager:
     def __init__(self):
         logging.basicConfig(
             filename=LOG_LOCATION,
@@ -193,19 +173,15 @@ class log_manager:
     def handling_subprocess_results(self, result):
         if result.returncode != 0:
             logging.exception(
-                "\n command: {COMMAND} \n output (may be None): {OUT} \n error (may be None): {ERROR} \n".format(
-                    COMMAND=" ".join(result.args),
-                    OUT=result.stdout,
-                    ERROR=result.stderr,
-                )
+                f"\n command: {' '.join(result.args)} \n output (may be None): {result.stdout} \n error (may be None): {result.stderr} \n"
             )
-            raise Exception("Check log for detailed error info.")
+            raise RuntimeError("Check log for detailed error info.")
 
 
 # The commands/processes that actually get run
-class commands:
-    def __init__(self, config: parsing):
-        self.__config = config.GetReadFile()
+class Commands:
+    def __init__(self, config: Parsing):
+        self.__config = config.get_read_file()
 
     def __get_date(self) -> datetime:
         return datetime.datetime.now()
@@ -246,8 +222,22 @@ class commands:
                 return ""
 
     # Executes the commands
-    def __commands_for_local(self, backup: list, host: str, user: str) -> str:
-        logger = log_manager()
+    def __commands_for_local(self, backup: list, host: str, user: str):
+        """Defines and runs the commands on the local machine
+
+        Args:
+            backup: the line from the config of which backup is being performed
+            host: the host (maybe ip) of the machine to be ssh'd into
+            user: the user you are ssh'ing into the host as
+        Returns:
+            none
+        Raises:
+            RuntimeError: if one of the commands fails it the logger calls an exception
+        Notes:
+            Check is turned off due to my own logging functionality
+
+        """
+        logger = Logmanager()
         date = self.__get_date()
         vm_cmd = self.__commands_for_vm(backup)
         save_as = self.__pulling_filename_from_location(backup)
@@ -255,17 +245,18 @@ class commands:
             subprocess.run(
                 [
                     "ssh",
-                    "{USER}@{HOST}".format(USER=user, HOST=host),
-                    "test -e {FROM}".format(FROM=backup[1]),
+                    f"{user}@{host}",
+                    f"test -e {backup[1]}",
                     "# To check if the file exists",
-                ]
+                ],
+                check=False
             )
         )
         logger.handling_subprocess_results(
             subprocess.run(
                 [
                     "ssh",
-                    "{USER}@{HOST}".format(USER=user, HOST=host),
+                    f"{user}@{host}",
                     "{VMCMD}".format(
                         VMCMD=vm_cmd.format(
                             FROM=backup[1],
@@ -274,53 +265,49 @@ class commands:
                         )
                     ),
                     "# To tell the machine to prepare the dir/file",
-                ]
+                ],
+                check=False
             )
         )
         logger.handling_subprocess_results(
             subprocess.run(
                 [
                     "scp",
-                    "{USER}@{HOST}:/tmp/{DATE}.{SAVE_AS}".format(
-                        USER=user,
-                        HOST=host,
-                        SAVE_AS=save_as,
-                        DATE=date.strftime("%d-%m-%Y"),
-                    ),
-                    "{TO}.{DATE}".format(TO=backup[2], DATE=date.strftime("%d-%m-%Y")),
+                    f"{user}@{host}:/tmp/{date.strftime('%d-%m-%Y')}.{save_as}",
+                    f"{backup[2]}.{date.strftime('%d-%m-%Y')}",
                     "# To pull the file from the machine",
-                ]
+                ],
+                check=False
             )
         )
         logger.handling_subprocess_results(
             subprocess.run(
                 [
                     "ssh",
-                    "{USER}@{HOST}".format(USER=user, HOST=host),
+                    f"{user}@{host}",
                     "rm",
-                    "/tmp/{DATE}.{SAVE_AS}".format(
-                        SAVE_AS=save_as, DATE=date.strftime("%d-%m-%Y")
-                    ),
+                    f"/tmp/{date.strftime('%d-%m-%Y')}.{save_as}",
                     "# To delete the file placed in tmp from the machine",
-                ]
+                ],
+                check=False
             )
         )
-        cleaning(backup[2], backup[4])  # Cleaning files that are old now that the new backups are there
+        Cleaning(backup[2], backup[4])  # Cleaning files that are old now that the new backups are there
 
 
 # Deals with the arguments and different functions that need to be called
-class command_functions:
+class Commandfunctions:
     def crontab_func(self, args):
-        parsed = parsing(CONFIG_LOCATION)
-        parsed.GetReadFile()
-        cron = cronning(parsed)
+        parsed = Parsing()
+        parsed.get_read_file()
+        cron = Cronning(parsed)
         cron.clear_crontab()
         cron.write_to_crontab()
 
     def execute_func(self, args):
         # This is a command operation
-        parsed = parsing(CONFIG_LOCATION)
-        command = commands(parsed)
+        parsed = Parsing()
+        command = Commands(parsed)
         command.execute(args.section, int(args.id))
 
 
@@ -335,14 +322,14 @@ def main():
     subparsers = global_parser.add_subparsers(required=True)
 
     crontab = subparsers.add_parser("crontab", help="Update the crontab")
-    crontab.set_defaults(func=command_functions.crontab_func)
+    crontab.set_defaults(func=Commandfunctions.crontab_func)
 
     execute = subparsers.add_parser(
         "execute", help="Execute a backup defined in the config.yml"
     )
     execute.add_argument("section")
     execute.add_argument("id")
-    execute.set_defaults(func=command_functions.execute_func)
+    execute.set_defaults(func=Commandfunctions.execute_func)
 
     args = global_parser.parse_args()
     args.func(args)
