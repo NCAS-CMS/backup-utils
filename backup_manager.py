@@ -33,7 +33,7 @@ class Parsing:
 
     def __reading_file(self):
         """Opens the file and uses pyyaml to read it"""
-        with open(self.__config_location, "r") as file:
+        with open(self.__config_location, "r", encoding="utf-8") as file:
             self.__config = yaml.safe_load(file)
 
     # Checks section in user@host
@@ -95,8 +95,16 @@ class Parsing:
         return self.__config
 
 
-# Removes old iterations of backups according to a number specified in the config
 class Cleaning:
+    """This class manages the cleaning of old iterations of backups
+    
+    Args:
+        file: as the cleaning class is initialised after every commit the file that needs to be cleaned is passed in
+        how_many: defines how many iterations of each file is to be kept, consistent among files
+
+    Note:
+        The init function completes all of the classes functionality, may be an idea to provide a few more pub methods
+    """
     def __init__(self, file: str, how_many: int):
         """Calls all of the cleaning functions to remove old iterations"""
         files = self.__finding_backup_locations(file)
@@ -143,35 +151,54 @@ class Cleaning:
 
 #  Manages the crontab
 class Cronning:
+    """Completes all of the crontab management of the program
+
+    Args:
+        config: a parsing object from which cronning can pull all the config file from
+    Note:
+        public methods are massive here due to this being a key danger point in the program hence I would prefer each method is called manually,
+        this means they aren't just bundled into init leaving a bit of danger.
+        also this is the only point at which the python-crontab module is used
+
+    """
     def __init__(self, config: Parsing):
         self.__config = config.get_read_file()
         self.__cron = CronTab(user=True)
 
-    # Removes all the cronjobs that the program has added to the crontab
-    # It does this by the use of a comment, Added by backup_manager!, so it doesn't remove cronjobs it hasn't added
     def clear_crontab(self):
+        """Clears the crontab of cron jobs it has added
+
+        Note:
+            It does this by the use of a comment appended to each job it adds
+
+        """
         for job in self.__cron.find_comment("Added by backup_manager!"):
             self.__cron.remove(job)
 
-    # Writes to the crontab
     def write_to_crontab(self):
+        """This writes the new jobs to the crontab, using the comment on the cronjobs again just for identification
+        
+        Note:
+            Due to the dangerous nature of this method I will explain it in detail:
+                First of all we iterate through all of the jobs through the use of two for loops
+                Then we initialise a job with the current file path of this script, the arguments that it needs to be called with and the comment
+                Then it detects whether cron syntax is being used, if so it just sets the cron time to the provided time in the config 
+                If not it detects if its months or days and uses steps accordingly
+
+        """
         for section in self.__config:
             for backup_i in range(0, len(self.__config.get(section))):
                 job = self.__cron.new(
                     command=f"/bin/python3 {os.path.abspath(__file__)} execute {section} {backup_i}",
                     comment="Added by backup_manager!",
                 )
-                if (
-                    "cron:" in self.__config.get(section)[backup_i][3]
-                ):  # We can use this loose check due to syntax validation earlier
+                if "cron:" in self.__config.get(section)[backup_i][3]:  # We can use this loose check due to syntax validation earlier
                     frequency = re.sub(
                         r"cron:\s", "", self.__config.get(section)[backup_i][3]
                     )
                     job.setall(frequency)
                 else:
-                    if (
-                        "MONTH" in self.__config.get(section)[backup_i][3]
-                    ):  # We can use this loose check due to syntax validation earlier
+                    if "MONTH" in self.__config.get(section)[backup_i][3]:  # We can use this loose check due to syntax validation earlier
                         job.setall(
                             f"0 0 1 */{self.__config.get(section)[backup_i][3][0]} *"
                         )  # Month steps - 1'st of every month
@@ -181,15 +208,33 @@ class Cronning:
                         )  # Day steps - Midnight at the start of the day
         self.__cron.write_to_user()
 
-
 class Logmanager:
+    """This class manages logging for the program
+
+    Note:
+        It is currently only in effect for subprocess failures but may be extended in the future
+
+    """
     def __init__(self):
+        """This init function sets up the logging"""
         logging.basicConfig(
             filename=LOG_LOCATION,
             format="%(asctime)s:%(funcName)s - %(levelname)s - %(message)s",
         )
 
     def handling_subprocess_results(self, result):
+        """This public function is the one called for each subprocess
+        
+        Args:
+            result: this is the return variable of the subprocess function, it provides information about the command
+
+        Raises:
+            RuntimeError: if there has been a failure (exit code != 0) the program fails
+        
+        Note:
+            the use of old style python string formatting is intentional due to its lazy nature (pylint told me off)
+
+        """
         if result.returncode != 0:
             logging.exception(
                 "\n command: %s\n output (may be None): %s \n error (may be None): %s \n", ' '.join(result.args), result.stdout, result.stderr
@@ -197,16 +242,29 @@ class Logmanager:
             raise RuntimeError("Check log for detailed error info.")
 
 
-# The commands/processes that actually get run
 class Commands:
+    """The commands class manages the commands that get ran to perform backups
+
+    Args:
+        config: a parsing object from which cronning can pull all the config file from
+
+    Note:
+        while the class in theory manages the execution the execute function manages the bulk of it
+    """
     def __init__(self, config: Parsing):
         self.__config = config.get_read_file()
 
     def __get_date(self) -> datetime:
         return datetime.datetime.now()
 
-    # Starts the execution progress
     def execute(self, section: str, backup_id: int):
+        """This manages the execution process
+
+        Args:
+            section: the section in the config where the backup is found
+            backup_id: the index within the section where the precise backup is found
+
+        """
         backup = self.__find_backup_info(section, backup_id)
         host, user = self.__pulling_host_and_user(section)
         self.__commands_for_local(backup, host, user)
@@ -216,7 +274,6 @@ class Commands:
         user = section.split("@")[0]
         return (host, user)
 
-    # Finds the specific backup being referred to in the arguments
     def __find_backup_info(self, section: str, backup_id: int) -> list:
         section: list = self.__config.get(section)
         return section[backup_id]
@@ -226,8 +283,13 @@ class Commands:
         split_path: list[str] = location.split("/")
         return split_path[len(split_path) - 1]
 
-    # Specifies which commands can be run, also where new commands can be added to incoorporate different backups
     def __commands_for_vm(self, backup: list) -> str:
+        """Specifies how commands should be run to prepare backups
+        
+        Note:
+            this is where it is easy to extend the program and add new commands, just make sure you update the regex!
+
+        """
         match backup[0]:
             case "db":
                 return 'sqlite3 {FROM} ".backup /tmp/{DATE}.{SAVE_AS}"'
@@ -240,7 +302,6 @@ class Commands:
             case _:
                 return ""
 
-    # Executes the commands
     def __commands_for_local(self, backup: list, host: str, user: str):
         """Defines and runs the commands on the local machine
 
@@ -314,9 +375,16 @@ class Commands:
         Cleaning(backup[2], backup[4])  # Cleaning files that are old now that the new backups are there
 
 
-# Deals with the arguments and different functions that need to be called
 class Commandfunctions:
+    """This class was required due to how argument parsing is done
+
+    crontab_func is called if the program is called with the crontab argument and likewise with the execute function
+
+    """
     def crontab_func(self, args):
+        """Parses the config, gets the parsed config, passes the config into cronning
+        calls dangerous public methods 
+        """
         parsed = Parsing()
         parsed.get_read_file()
         cron = Cronning(parsed)
@@ -324,15 +392,15 @@ class Commandfunctions:
         cron.write_to_crontab()
 
     def execute_func(self, args):
-        # This is a command operation
+        """Parses the config, tells command to read the config and then tells it to execute"""
         parsed = Parsing()
         command = Commands(parsed)
         command.execute(args.section, int(args.id))
 
 
-# Sets up the argument parsing and prints out explanations if there are wrong arguments
 def main():
-    if CONFIG_LOCATION == "":  # The default value
+    """Sets up the program, e.g. erroring out with empty values and argument parsing"""
+    if CONFIG_LOCATION == "":
         raise ValueError("Please provide the location of your config.yml file")
     if LOG_LOCATION == "":
         raise ValueError("Please specify the location of the log file")
