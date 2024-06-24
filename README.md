@@ -10,15 +10,15 @@ Backup manager is a simplistic backup solution that reads a configuration file (
 ![use-case-diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/NCAS-CMS/backup-utils/dev/diagrams/sequence-diagram.iuml)
 
 ## Running it 🏃
-* First of all, you need to install the [crontab python module](https://pypi.org/project/python-crontab/) using pip:
-```bash
-pip install python-crontab
-```
 * Get the `backup_manager.py` script and the `config.yml` files
   * They should preferably not be moved around much as the crontab needs to be regenerated if the `backup_manager.py` changes location (as it uses it to execute commands)
   * One way to do this is through a quick git clone command:
 ```bash
 git clone https://github.com/NCAS-CMS/backup-utils.git && cd backup-utils
+```
+* Then you should install the dependencies, [python crontab](https://pypi.org/project/python-crontab/) and [pyyaml](https://pypi.org/project/PyYAML/)
+```bash
+pip install -r requirements.txt
 ```
 * Edit the config.yml file to your liking
   * Note that the section groups specify the host and the username used
