@@ -13,8 +13,10 @@ CONFIG_LOCATION = ""  # PLEASE SET THIS! (The program will error out if you don'
 LOG_LOCATION = ""  # PLEASE ALSO SET THIS! (The program will also error out here if not set)
 
 
-# Reads the configuration file and produces a dictionary that the rest of the program can use
 class Parsing:
+    """This class manages the parsing of the config file along with syntax checking
+    Note: The read config is accessed through the get_read_file() method
+    """
     def __init__(self):
         """Sets up the config file for reading and calls the reading function
         
@@ -30,17 +32,25 @@ class Parsing:
         self.__reading_file()
 
     def __reading_file(self):
+        """Opens the file and uses pyyaml to read it"""
         with open(self.__config_location, "r") as file:
             self.__config = yaml.safe_load(file)
 
     # Checks section in user@host
     def __section_format_check(self):
+        """Checks the format of the section headers"""
         for section in self.__config:
             valid = re.findall(r"^\w+@\w+$", section)
             if not valid:
                 raise ValueError(f"Section titles need to be of form user@host, yours is {section}")
 
     def __backup_format_check(self):
+        """Uses REGEX to analyse the config file and raises appropriate exceptions
+
+        Raises:
+            ValueError: when the regex fails thus the config file isn't valid
+        
+        """
         for section in self.__config:
             for backup in self.__config.get(section):
                 # Length check
@@ -70,10 +80,17 @@ class Parsing:
                     raise ValueError(f"The number of iterations must be a positive integer, yours is {backup[4]}")
 
     def __syntax_check(self):
+        """Calls the two syntax checks defined above"""
         self.__section_format_check()
         self.__backup_format_check()
 
     def get_read_file(self) -> dict:
+        """Syntax checks the file and then returns it if it is valid (it hasn't errored)
+        
+        Returns:
+            self.__config: The config file in a dictionary format provided by pyyaml
+
+        """
         self.__syntax_check()
         return self.__config
 
@@ -81,20 +98,22 @@ class Parsing:
 # Removes old iterations of backups according to a number specified in the config
 class Cleaning:
     def __init__(self, file: str, how_many: int):
+        """Calls all of the cleaning functions to remove old iterations"""
         files = self.__finding_backup_locations(file)
         self.__sorting_into_types(files, file)
         self.__sorting_dates()
         self.__deleting_older_than_freq(file, how_many, files)
 
     def __finding_backup_locations(self, file: str) -> list:
+        """Scans all of the directories defined in the config and calls ls and returns it files"""
         full_path = file.split("/")
         backup_location_list = full_path[:-1]
         self.__backup_location = "/".join(backup_location_list).strip()
         files = os.listdir(self.__backup_location)
         return files
 
-    # Splits the directory into the files
     def __sorting_into_types(self, files: list, file: str):
+        """"""
         self.__collection: dict[str, list] = {}
         for i in files:
             file_in_dir = i.split(".")[0] + "." + i.split(".")[1]
@@ -173,7 +192,7 @@ class Logmanager:
     def handling_subprocess_results(self, result):
         if result.returncode != 0:
             logging.exception(
-                f"\n command: {' '.join(result.args)} \n output (may be None): {result.stdout} \n error (may be None): {result.stderr} \n"
+                "\n command: %s\n output (may be None): %s \n error (may be None): %s \n", ' '.join(result.args), result.stdout, result.stderr
             )
             raise RuntimeError("Check log for detailed error info.")
 
